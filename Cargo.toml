@@ -1,0 +1,16 @@
+[profile.dev]
+split-debuginfo = "packed"
+opt-level = 1
+
+[workspace]
+resolver = "2"
+
+members = [
+	"crates/*"
+]
+
+default-members = [
+	"crates/main"
+]
+
+license = "MIT"

@@ -1,14 +1,9 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//! Application ui library.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+#![warn(
+    missing_copy_implementations,
+    missing_docs,
+    clippy::unwrap_used,
+    clippy::pedantic,
+    rustdoc::all
+)]
