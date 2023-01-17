@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 bookmark-app = { path = "../app" }
+iced = { version = "0.7.0", features = ["tokio"] }
