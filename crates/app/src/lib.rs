@@ -8,14 +8,83 @@
     rustdoc::all
 )]
 
-use std::path::PathBuf;
-
+use derive_more::From;
 use iced::{
     executor, theme,
     widget::{container, text},
     Command, Length,
 };
+use std::path::PathBuf;
 use tap::Pipe;
+
+#[allow(clippy::module_name_repetitions)]
+mod data {
+    use serde::{Deserialize, Serialize};
+    use std::{io, path::PathBuf, result};
+    use tap::Pipe;
+    use thiserror::Error;
+    use tokio::fs;
+    use uuid::Uuid;
+
+    #[derive(Error, Debug)]
+    pub enum Error {
+        #[error(transparent)]
+        IO(#[from] io::Error),
+        #[error(transparent)]
+        XmlDeserialize(#[from] quick_xml::DeError),
+    }
+
+    pub type Result<T = ()> = result::Result<T, Error>;
+
+    #[derive(Default, Debug, Serialize, Deserialize)]
+    pub struct FileData {
+        pub tag: Vec<String>,
+        pub category: Vec<CategoryData>,
+        pub bookmark: Vec<BookmarkData>,
+    }
+
+    #[derive(Default, Debug, Serialize, Deserialize)]
+    pub struct CategoryData {
+        pub name: String,
+        pub info: String,
+        pub identifier: IdentifierData,
+        pub subcategory: Vec<CategoryData>,
+    }
+
+    #[derive(Default, Debug, Serialize, Deserialize)]
+    pub struct IdentifierData {
+        pub require: Vec<String>,
+        pub whole: Vec<String>,
+        pub include: Vec<String>,
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct BookmarkData {
+        pub url: String,
+        pub info: String,
+        pub uuid: Uuid,
+        pub tag: Vec<String>,
+    }
+
+    impl FileData {
+        pub async fn load(path: PathBuf) -> Result<Self> {
+            Ok(fs::read_to_string(path)
+                .await?
+                .pipe_deref(quick_xml::de::from_str)?)
+        }
+    }
+
+    impl Default for BookmarkData {
+        fn default() -> Self {
+            Self {
+                url: String::new(),
+                info: String::new(),
+                uuid: Uuid::new_v4(),
+                tag: Vec::new(),
+            }
+        }
+    }
+}
 
 pub use iced::Application;
 
@@ -31,11 +100,12 @@ pub struct Flags {
 }
 
 /// Top Message class used by [App].
-#[derive(Debug)]
+#[derive(Debug, From)]
 pub enum Message {
     /// Signal a file has been loaded.
-    FileLoaded(PathBuf),
+    FileLoaded(data::Result<data::FileData>),
     /// Signal a file should be loaded.
+    #[from(ignore)]
     LoadFile(PathBuf),
 }
 
@@ -70,11 +140,17 @@ impl Application for App {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::FileLoaded(file) => {
-                println!("loaded file {}", file.display());
+            Message::FileLoaded(Ok(file_data)) => {
+                println!("loaded file data {file_data:#?}");
                 Command::none()
             }
-            Message::LoadFile(file) => Command::perform(async move { file }, Message::FileLoaded),
+            Message::FileLoaded(Err(err)) => {
+                eprintln!("failed to load file data: {err}");
+                Command::none()
+            }
+            Message::LoadFile(file) => {
+                Command::perform(data::FileData::load(file), Message::FileLoaded)
+            }
         }
     }
 

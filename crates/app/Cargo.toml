@@ -7,8 +7,9 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 derive_more = "0.99.17"
 iced = { version = "0.7.0", features = ["tokio"] }
-quick-xml = { version = "0.27.1", features = ["serde", "tokio", "async-tokio"] }
-serde = "1.0.152"
+quick-xml = { version = "0.27.1", features = ["serde", "tokio", "async-tokio", "serialize"] }
+serde = { version = "1.0.152", features = ["derive"] }
 tap = "1.0.1"
 thiserror = "1.0.38"
 tokio = { version = "1.24.1", features = ["full"] }
+uuid = { version = "1.2.2", features = ["v4", "serde", "fast-rng"] }
