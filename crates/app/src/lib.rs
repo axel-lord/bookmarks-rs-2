@@ -8,14 +8,48 @@
     rustdoc::all
 )]
 
+use data::FileData;
 use derive_more::From;
 use iced::{
     executor, theme,
-    widget::{container, text},
-    Command, Length,
+    widget::{button, container, scrollable, text, Column, Row},
+    Command, Element, Length,
 };
 use std::path::PathBuf;
 use tap::Pipe;
+
+trait IterElements<Msg>: Iterator {
+    fn collect_coumn<'a, E, F>(self, f: F) -> Column<'a, Msg>
+    where
+        E: Into<Element<'a, Msg>>,
+        F: FnMut(Self::Item) -> E;
+
+    fn collect_row<'a, E, F>(self, f: F) -> Row<'a, Msg>
+    where
+        E: Into<Element<'a, Msg>>,
+        F: FnMut(Self::Item) -> E;
+}
+
+impl<I, Msg> IterElements<Msg> for I
+where
+    I: Iterator,
+{
+    fn collect_row<'a, E, F>(self, mut f: F) -> Row<'a, Msg>
+    where
+        E: Into<Element<'a, Msg>>,
+        F: FnMut(Self::Item) -> E,
+    {
+        self.fold(Row::new(), |row, item| row.push(f(item)))
+    }
+
+    fn collect_coumn<'a, E, F>(self, mut f: F) -> Column<'a, Msg>
+    where
+        E: Into<Element<'a, Msg>>,
+        F: FnMut(Self::Item) -> E,
+    {
+        self.fold(Column::new(), |column, item| column.push(f(item)))
+    }
+}
 
 #[allow(clippy::module_name_repetitions)]
 mod data {
@@ -87,8 +121,10 @@ mod data {
 pub use iced::Application;
 
 /// Application class.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct App;
+#[derive(Debug, Default)]
+pub struct App {
+    data: Option<FileData>,
+}
 
 /// Flags used to set initial state of [App].
 #[derive(Default)]
@@ -105,6 +141,9 @@ pub enum Message {
     /// Signal a file should be loaded.
     #[from(ignore)]
     LoadFile(PathBuf),
+    /// Signal a bookmark should be opened.
+    #[from(ignore)]
+    OpenBookmark(uuid::Uuid),
 }
 
 impl Application for App {
@@ -139,7 +178,7 @@ impl Application for App {
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::FileLoaded(Ok(file_data)) => {
-                dbg!(file_data.category);
+                self.data = Some(file_data);
                 Command::none()
             }
             Message::FileLoaded(Err(err)) => {
@@ -149,19 +188,41 @@ impl Application for App {
             Message::LoadFile(file) => {
                 Command::perform(data::FileData::load(file), Message::FileLoaded)
             }
+            Message::OpenBookmark(id) => {
+                if let Some(ref file_data) = self.data {
+                    if let Some(bookmark) = file_data
+                        .bookmark
+                        .iter()
+                        .find(|bookmark| bookmark.uuid == id)
+                    {
+                        println!("Open \"{}\"", bookmark.url);
+                    } else {
+                        println!("could not find bookmark");
+                    }
+                }
+                Command::none()
+            }
         }
     }
 
     fn view(&self) -> iced::Element<Self::Message> {
-        text("Message")
-            .pipe(container)
-            .padding(3)
-            .style(theme::Container::Box)
-            .pipe(container)
+        let Some(ref file_data) = self.data else {
+            return text("no data loaded").pipe(container).width(Length::Fill).height(Length::Fill).center_x().center_y().into();
+        };
+
+        file_data
+            .bookmark
+            .iter()
+            .collect_coumn(|bookmark| {
+                text(bookmark.url.clone())
+                    .pipe(button)
+                    .on_press(bookmark.uuid)
+                    .style(theme::Button::Text)
+                    .pipe(Element::from)
+                    .map(Message::OpenBookmark)
+            })
             .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x()
-            .center_y()
+            .pipe(scrollable)
             .into()
     }
 }
