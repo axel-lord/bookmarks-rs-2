@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 derive_more = "0.99.17"
 iced = { version = "0.7.0", features = ["tokio"] }
 quick-xml = { version = "0.27.1", features = ["serde", "tokio", "async-tokio", "serialize"] }
+rmp-serde = "1.1.1"
 serde = { version = "1.0.152", features = ["derive"] }
 tap = "1.0.1"
 thiserror = "1.0.38"

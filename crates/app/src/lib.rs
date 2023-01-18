@@ -31,7 +31,7 @@ mod data {
         #[error(transparent)]
         IO(#[from] io::Error),
         #[error(transparent)]
-        XmlDeserialize(#[from] quick_xml::DeError),
+        RmpDeserialize(#[from] rmp_serde::decode::Error),
     }
 
     pub type Result<T = ()> = result::Result<T, Error>;
@@ -68,9 +68,7 @@ mod data {
 
     impl FileData {
         pub async fn load(path: PathBuf) -> Result<Self> {
-            Ok(fs::read_to_string(path)
-                .await?
-                .pipe_deref(quick_xml::de::from_str)?)
+            Ok(fs::read(path).await?.pipe_deref(rmp_serde::from_slice)?)
         }
     }
 
@@ -141,7 +139,7 @@ impl Application for App {
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::FileLoaded(Ok(file_data)) => {
-                println!("loaded file data {file_data:#?}");
+                dbg!(file_data.category);
                 Command::none()
             }
             Message::FileLoaded(Err(err)) => {
