@@ -55,16 +55,15 @@ pub enum Message {
     SelTab(usize),
 }
 
-fn tabs<'a, M, S, F, E>(
+fn tabs<'a, M, S, E>(
     tabs: &[S],
     current: usize,
-    on_choice: fn(usize) -> M,
-    mut content: F,
+    on_choice: impl 'a + Clone + Fn(usize) -> M,
+    mut content: impl FnMut(&S) -> E,
 ) -> Element<'a, M>
 where
     S: ToString,
     M: 'a,
-    F: FnMut(&S) -> E,
     E: Into<Element<'a, M>>,
 {
     assert!((0..tabs.len()).contains(&current));
@@ -81,7 +80,7 @@ where
                     }
                 })
                 .pipe(Element::from)
-                .map(on_choice)
+                .map(on_choice.clone())
         }))
         .push(content(&tabs[current]))
         .width(Length::Fill)
