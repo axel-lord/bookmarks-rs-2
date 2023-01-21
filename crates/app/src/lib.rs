@@ -8,115 +8,16 @@
     rustdoc::all
 )]
 
-use data::FileData;
+use bookmark_data::FileData;
+use bookmark_ui_util::IteratorWidgetExt;
 use derive_more::From;
 use iced::{
     executor, theme,
-    widget::{button, container, scrollable, text, Column, Row},
+    widget::{button, container, scrollable, text, Column},
     Command, Element, Length,
 };
 use std::path::PathBuf;
 use tap::Pipe;
-
-trait IterElements<Msg>: Iterator {
-    fn collect_coumn<'a, E, F>(self, f: F) -> Column<'a, Msg>
-    where
-        E: Into<Element<'a, Msg>>,
-        F: FnMut(Self::Item) -> E;
-
-    fn collect_row<'a, E, F>(self, f: F) -> Row<'a, Msg>
-    where
-        E: Into<Element<'a, Msg>>,
-        F: FnMut(Self::Item) -> E;
-}
-
-impl<I, Msg> IterElements<Msg> for I
-where
-    I: Iterator,
-{
-    fn collect_row<'a, E, F>(self, mut f: F) -> Row<'a, Msg>
-    where
-        E: Into<Element<'a, Msg>>,
-        F: FnMut(Self::Item) -> E,
-    {
-        self.fold(Row::new(), |row, item| row.push(f(item)))
-    }
-
-    fn collect_coumn<'a, E, F>(self, mut f: F) -> Column<'a, Msg>
-    where
-        E: Into<Element<'a, Msg>>,
-        F: FnMut(Self::Item) -> E,
-    {
-        self.fold(Column::new(), |column, item| column.push(f(item)))
-    }
-}
-
-#[allow(clippy::module_name_repetitions)]
-mod data {
-    use serde::{Deserialize, Serialize};
-    use std::{io, path::PathBuf, result};
-    use tap::Pipe;
-    use thiserror::Error;
-    use tokio::fs;
-    use uuid::Uuid;
-
-    #[derive(Error, Debug)]
-    pub enum Error {
-        #[error(transparent)]
-        IO(#[from] io::Error),
-        #[error(transparent)]
-        RmpDeserialize(#[from] rmp_serde::decode::Error),
-    }
-
-    pub type Result<T = ()> = result::Result<T, Error>;
-
-    #[derive(Default, Debug, Serialize, Deserialize)]
-    pub struct FileData {
-        pub tag: Vec<String>,
-        pub category: Vec<CategoryData>,
-        pub bookmark: Vec<BookmarkData>,
-    }
-
-    #[derive(Default, Debug, Serialize, Deserialize)]
-    pub struct CategoryData {
-        pub name: String,
-        pub info: String,
-        pub identifier: IdentifierData,
-        pub subcategory: Vec<CategoryData>,
-    }
-
-    #[derive(Default, Debug, Serialize, Deserialize)]
-    pub struct IdentifierData {
-        pub require: Vec<String>,
-        pub whole: Vec<String>,
-        pub include: Vec<String>,
-    }
-
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct BookmarkData {
-        pub url: String,
-        pub info: String,
-        pub uuid: Uuid,
-        pub tag: Vec<String>,
-    }
-
-    impl FileData {
-        pub async fn load(path: PathBuf) -> Result<Self> {
-            Ok(fs::read(path).await?.pipe_deref(rmp_serde::from_slice)?)
-        }
-    }
-
-    impl Default for BookmarkData {
-        fn default() -> Self {
-            Self {
-                url: String::new(),
-                info: String::new(),
-                uuid: Uuid::new_v4(),
-                tag: Vec::new(),
-            }
-        }
-    }
-}
 
 pub use iced::Application;
 
@@ -124,6 +25,8 @@ pub use iced::Application;
 #[derive(Debug, Default)]
 pub struct App {
     data: Option<FileData>,
+    tabs: Vec<String>,
+    selected_tab: usize,
 }
 
 /// Flags used to set initial state of [App].
@@ -137,13 +40,53 @@ pub struct Flags {
 #[derive(Debug, From)]
 pub enum Message {
     /// Signal a file has been loaded.
-    FileLoaded(data::Result<data::FileData>),
+    FileLoaded(bookmark_data::Result<FileData>),
     /// Signal a file should be loaded.
     #[from(ignore)]
     LoadFile(PathBuf),
     /// Signal a bookmark should be opened.
     #[from(ignore)]
     OpenBookmark(uuid::Uuid),
+    /// Add a blank tab.
+    #[from(ignore)]
+    AddTab(String),
+    /// Select a blank tab.
+    #[from(ignore)]
+    SelTab(usize),
+}
+
+fn tabs<'a, M, S, F, E>(
+    tabs: &[S],
+    current: usize,
+    on_choice: fn(usize) -> M,
+    mut content: F,
+) -> Element<'a, M>
+where
+    S: ToString,
+    M: 'a,
+    F: FnMut(&S) -> E,
+    E: Into<Element<'a, M>>,
+{
+    assert!((0..tabs.len()).contains(&current));
+    Column::new()
+        .push(tabs.iter().enumerate().collect_row(|(index, tab)| {
+            tab.to_string()
+                .pipe(text)
+                .pipe(button)
+                .pipe(|btn| {
+                    if index == current {
+                        btn
+                    } else {
+                        btn.on_press(index)
+                    }
+                })
+                .pipe(Element::from)
+                .map(on_choice)
+        }))
+        .push(content(&tabs[current]))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }
 
 impl Application for App {
@@ -157,7 +100,10 @@ impl Application for App {
 
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
         (
-            Self::default(),
+            Self {
+                tabs: ["bookmarks", "edit", "log"].map(String::from).into(),
+                ..Self::default()
+            },
             if flags.files.is_empty() {
                 Command::none()
             } else {
@@ -185,9 +131,7 @@ impl Application for App {
                 eprintln!("failed to load file data: {err}");
                 Command::none()
             }
-            Message::LoadFile(file) => {
-                Command::perform(data::FileData::load(file), Message::FileLoaded)
-            }
+            Message::LoadFile(file) => Command::perform(FileData::load(file), Message::FileLoaded),
             Message::OpenBookmark(id) => {
                 if let Some(ref file_data) = self.data {
                     if let Some(bookmark) = file_data
@@ -202,6 +146,14 @@ impl Application for App {
                 }
                 Command::none()
             }
+            Message::AddTab(name) => {
+                self.tabs.push(name);
+                Command::none()
+            }
+            Message::SelTab(tab) => {
+                self.selected_tab = tab;
+                Command::none()
+            }
         }
     }
 
@@ -210,19 +162,28 @@ impl Application for App {
             return text("no data loaded").pipe(container).width(Length::Fill).height(Length::Fill).center_x().center_y().into();
         };
 
-        file_data
-            .bookmark
-            .iter()
-            .collect_coumn(|bookmark| {
-                text(bookmark.url.clone())
-                    .pipe(button)
-                    .on_press(bookmark.uuid)
-                    .style(theme::Button::Text)
-                    .pipe(Element::from)
-                    .map(Message::OpenBookmark)
-            })
-            .width(Length::Fill)
-            .pipe(scrollable)
-            .into()
+        tabs(
+            &self.tabs,
+            self.selected_tab,
+            Message::SelTab,
+            |tab_state| match tab_state.as_str() {
+                "bookmarks" => file_data
+                    .bookmark
+                    .iter()
+                    .take(128)
+                    .collect_column(|bookmark| {
+                        text(bookmark.url.clone())
+                            .pipe(button)
+                            .on_press(bookmark.uuid)
+                            .style(theme::Button::Text)
+                            .pipe(Element::from)
+                            .map(Message::OpenBookmark)
+                    })
+                    .width(Length::Fill)
+                    .pipe(scrollable)
+                    .pipe(Element::from),
+                _ => text("no content").into(),
+            },
+        )
     }
 }
