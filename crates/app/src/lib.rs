@@ -9,14 +9,14 @@
 )]
 
 use bookmark_data::FileData;
-use bookmark_ui_util::IteratorWidgetExt;
+use bookmark_ui_util::{tabs::Tabs, IteratorWidgetExt};
 use derive_more::From;
 use iced::{
     executor, theme,
-    widget::{button, container, scrollable, text, Column},
+    widget::{button, container, scrollable, text},
     Command, Element, Length,
 };
-use std::{marker::PhantomData, path::PathBuf};
+use std::path::PathBuf;
 use tap::Pipe;
 
 pub use iced::Application;
@@ -55,117 +55,6 @@ pub enum Message {
     SelTab(usize),
 }
 
-struct Tabs<'a, 'b, State, OnChoice, Content, Message, Widget> {
-    _lifetime: PhantomData<&'a (Message, Widget)>,
-    tabs: Option<&'b [State]>,
-    current: Option<usize>,
-    on_choice: Option<OnChoice>,
-    content: Option<Content>,
-}
-
-impl<'a, Message, State, OnChoice, Content, Widget> Default
-    for Tabs<'a, '_, State, OnChoice, Content, Message, Widget>
-{
-    fn default() -> Self {
-        Self {
-            _lifetime: PhantomData::default(),
-            tabs: None,
-            current: None,
-            on_choice: None,
-            content: None,
-        }
-    }
-}
-
-impl<'a, 'b, Message, State, OnChoice, Content, Widget>
-    Tabs<'a, 'b, State, OnChoice, Content, Message, Widget>
-{
-    fn new() -> Self {
-        Self::default()
-    }
-
-    fn current(self, current: usize) -> Self {
-        Self {
-            current: Some(current),
-            ..self
-        }
-    }
-
-    fn tabs(self, tabs: &'b [State]) -> Self
-    where
-        State: ToString,
-    {
-        Self {
-            tabs: Some(tabs),
-            ..self
-        }
-    }
-
-    fn on_choice(self, on_choice: OnChoice) -> Self
-    where
-        OnChoice: 'a + Clone + Fn(usize) -> Message,
-    {
-        Self {
-            on_choice: Some(on_choice),
-            ..self
-        }
-    }
-
-    fn content(self, content: Content) -> Self
-    where
-        Content: FnMut(&State) -> Widget,
-    {
-        Self {
-            content: Some(content),
-            ..self
-        }
-    }
-}
-
-impl<'a, Message, State, OnChoice, Content, Widget>
-    From<Tabs<'a, '_, State, OnChoice, Content, Message, Widget>> for Element<'a, Message>
-where
-    State: ToString,
-    Message: 'a,
-    Widget: Into<Element<'a, Message>>,
-    OnChoice: 'a + Clone + Fn(usize) -> Message,
-    Content: FnMut(&State) -> Widget,
-{
-    fn from(value: Tabs<'a, '_, State, OnChoice, Content, Message, Widget>) -> Self {
-        let Some(tabs) = value.tabs else {
-            panic!("no tabs given to Tabs")
-        };
-        let Some(current) = value.current else {
-            panic!("not current given to Tabs")
-        };
-        let Some(on_choice) = value.on_choice else {
-            panic!("no on_choice given to Tabs")
-        };
-        let Some(mut content) = value.content else {
-            panic!("no content function given to Tabs")
-        };
-        Column::new()
-            .push(tabs.iter().enumerate().collect_row(|(index, tab)| {
-                tab.to_string()
-                    .pipe(text)
-                    .pipe(button)
-                    .pipe(|btn| {
-                        if index == current {
-                            btn
-                        } else {
-                            btn.on_press(index)
-                        }
-                    })
-                    .pipe(Element::from)
-                    .map(on_choice.clone())
-            }))
-            .push(content(&tabs[current]))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
-    }
-}
-
 impl Application for App {
     type Executor = executor::Default;
 
@@ -178,7 +67,18 @@ impl Application for App {
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
         (
             Self {
-                tabs: ["bookmarks", "edit", "log"].map(String::from).into(),
+                tabs: [
+                    "bookmarks",
+                    "edit",
+                    "log",
+                    "one",
+                    "two",
+                    "three",
+                    "four",
+                    "fiftyseven",
+                ]
+                .map(String::from)
+                .into(),
                 ..Self::default()
             },
             if flags.files.is_empty() {
@@ -239,11 +139,11 @@ impl Application for App {
             return text("no data loaded").pipe(container).width(Length::Fill).height(Length::Fill).center_x().center_y().into();
         };
 
-        Tabs::new()
-            .on_choice(Message::SelTab)
-            .current(self.selected_tab)
-            .tabs(&self.tabs)
-            .content(|tab_state| match tab_state.as_str() {
+        Tabs::new(
+            &self.tabs,
+            self.selected_tab,
+            Message::SelTab,
+            |tab_state| match tab_state.as_str() {
                 "bookmarks" => file_data
                     .bookmark
                     .iter()
@@ -260,7 +160,8 @@ impl Application for App {
                     .pipe(scrollable)
                     .pipe(Element::from),
                 _ => text("no content").into(),
-            })
-            .into()
+            },
+        )
+        .into()
     }
 }

@@ -13,6 +13,8 @@ use iced::{
     Element,
 };
 
+pub mod tabs;
+
 /// Extension trait to create rows or columns from an iterator.
 pub trait IteratorWidgetExt<Message>: Iterator {
     /// Collect an iterator into a column using the passed function to transform the iterator
