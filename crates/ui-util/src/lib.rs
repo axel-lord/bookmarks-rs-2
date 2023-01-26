@@ -14,6 +14,7 @@ use iced::{
 };
 
 pub mod tabs;
+pub mod text_button;
 
 /// Extension trait to create rows or columns from an iterator.
 pub trait IteratorWidgetExt<Message>: Iterator {

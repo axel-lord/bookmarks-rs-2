@@ -1,7 +1,8 @@
 [package]
-name = "bookmark-ui-util"
+name = "bookmark-util"
 version = "0.1.0"
 edition = "2021"
+
 
 [dependencies]
 derive_more = "0.99.17"
@@ -9,7 +10,3 @@ tap = "1.0.1"
 thiserror = "1.0.38"
 tokio = { version = "1.24.1", features = ["full"] }
 uuid = { version = "1.2.2", features = ["v4", "serde", "fast-rng"] }
-
-iced = { version = "0.7.0", features = ["tokio"] }
-
-bookmark-util = { path = "../util" }

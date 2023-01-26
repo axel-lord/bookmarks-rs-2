@@ -1,4 +1,4 @@
-//! Module for [Tabs] widget.
+//! Module for [Tabs] widget builder.
 
 use crate::IteratorWidgetExt;
 use iced::{
@@ -21,18 +21,19 @@ pub struct Tabs<'a, 'b, State, OnChoice, Content, Message, Widget> {
 
 impl<'a, 'b, Message, State, OnChoice, Content, Widget>
     Tabs<'a, 'b, State, OnChoice, Content, Message, Widget>
-where
-    State: ToString,
-    OnChoice: 'a + Clone + Fn(usize) -> Message,
-    Content: FnMut(&State) -> Widget,
-    Message: 'a,
-    Widget: Into<Element<'a, Message>>,
 {
     /// Construct a new [Tabs] with passed arguments and functions to determine state.
     ///
     /// # Panics
     /// If current is not an index of tabs.
-    pub fn new(tabs: &'b [State], current: usize, on_choice: OnChoice, content: Content) -> Self {
+    pub fn new(tabs: &'b [State], current: usize, on_choice: OnChoice, content: Content) -> Self
+    where
+        State: ToString,
+        OnChoice: 'a + Clone + Fn(usize) -> Message,
+        Content: FnMut(&State) -> Widget,
+        Message: 'a,
+        Widget: Into<Element<'a, Message>>,
+    {
         assert!((0..tabs.len()).contains(&current));
         Self {
             _lifetime: PhantomData::default(),
