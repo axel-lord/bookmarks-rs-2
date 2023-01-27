@@ -23,55 +23,25 @@ pub trait AnyWithExt {
         }
     }
 
-    /// Use a functor on a reference to an object and a value if the value is some else do
-    /// nothing.
+    /// Change the state of a type with a function and a value if said value is Some else use
+    /// another function. As long as the two functions have the same return type they may change
+    /// self to said type.
     #[must_use]
-    fn with_ref<Value, IfSome, IfSomeRet>(self, value: Option<Value>, mut if_some: IfSome) -> Self
-    where
-        Self: Sized,
-        IfSome: FnMut(&Self, Value) -> IfSomeRet,
-    {
-        if let Some(value) = value {
-            if_some(&self, value);
-        }
-        self
-    }
-
-    /// Use a functor on a mutable reference to an object and a value if the value is some else do
-    /// nothing.
-    #[must_use]
-    fn with_mut<Value, IfSome, IfSomeRet>(
-        mut self,
-        value: Option<Value>,
-        mut if_some: IfSome,
-    ) -> Self
-    where
-        Self: Sized,
-        IfSome: FnMut(&mut Self, Value) -> IfSomeRet,
-    {
-        if let Some(value) = value {
-            if_some(&mut self, value);
-        }
-        self
-    }
-
-    /// Use a functor on a reference to an object and a value if the value is some else do
-    /// nothing.
-    #[must_use]
-    fn with_as_ref<Value, IfSome, SelfRef, IfSomeRet>(
+    fn with_else<T, R>(
         self,
-        value: Option<Value>,
-        mut if_some: IfSome,
-    ) -> Self
+        value: Option<T>,
+        mut if_some: impl FnMut(Self, T) -> R,
+        mut if_none: impl FnMut(Self) -> R,
+    ) -> R
     where
-        Self: Sized + AsRef<SelfRef>,
-        IfSome: FnMut(&SelfRef, Value) -> IfSomeRet,
+        Self: Sized,
     {
         if let Some(value) = value {
-            if_some(self.as_ref(), value);
+            if_some(self, value)
+        } else {
+            if_none(self)
         }
-        self
     }
 }
 
-impl<Ty> AnyWithExt for Ty {}
+impl<T> AnyWithExt for T {}
