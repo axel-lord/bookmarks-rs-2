@@ -1,11 +1,24 @@
 use bookmark_ui_util::Theme;
-use iced::{widget::text, Application, Element, Settings};
+use iced::{
+    widget::{container, text, toggler, Row},
+    Application, Element, Length, Settings,
+};
 use std::borrow::Cow;
+use tap::Pipe;
 
-struct App;
+struct App {
+    theme: Theme,
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+enum Message {
+    Text(Cow<'static, str>),
+    Theme(Theme),
+}
 
 impl Application for App {
-    type Message = Cow<'static, str>;
+    type Message = Message;
     type Executor = iced::executor::Default;
     type Theme = Theme;
     type Flags = ();
@@ -15,7 +28,10 @@ impl Application for App {
     }
 
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
-        println!("message: {message}");
+        match message {
+            Message::Text(message) => println!("message: {message}"),
+            Message::Theme(theme) => self.theme = theme,
+        }
         iced::Command::none()
     }
 
@@ -49,11 +65,35 @@ impl Application for App {
         //     .center_x()
         //     .center_y()
         //     .into()
-        text("placeholder").into()
+        Row::new()
+            .push(text("use dark mode"))
+            .push(
+                toggler(None, matches!(self.theme, Theme::Dark), |b| {
+                    Message::Theme(if b { Theme::Dark } else { Theme::Light })
+                })
+                .width(Length::Shrink),
+            )
+            .spacing(3)
+            .pipe(container)
+            .center_x()
+            .center_y()
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .padding(3)
+            .into()
+    }
+
+    fn theme(&self) -> Self::Theme {
+        self.theme
     }
 
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
-        (Self, iced::Command::none())
+        (
+            Self {
+                theme: Theme::Light,
+            },
+            iced::Command::none(),
+        )
     }
 }
 
