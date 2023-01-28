@@ -1,61 +1,59 @@
-use bookmark_ui_util::{
-    text_button::{Style as TbStyle, TextButton},
-    IteratorWidgetExt,
-};
-use iced::{
-    widget::{container, Column},
-    Length, Sandbox, Settings,
-};
+use bookmark_ui_util::Theme;
+use iced::{widget::text, Application, Element, Settings};
 use std::borrow::Cow;
-use tap::Pipe;
 
 struct App;
 
-impl Sandbox for App {
+impl Application for App {
     type Message = Cow<'static, str>;
-
-    fn new() -> Self {
-        Self
-    }
+    type Executor = iced::executor::Default;
+    type Theme = Theme;
+    type Flags = ();
 
     fn title(&self) -> String {
         "Buttons".into()
     }
 
-    fn update(&mut self, message: Self::Message) {
-        println!("message: {message}")
+    fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
+        println!("message: {message}");
+        iced::Command::none()
     }
 
-    fn view(&self) -> iced::Element<'_, Self::Message> {
-        const NAMES: &[(&str, TbStyle)] = &[
-            ("One", TbStyle::Primary),
-            ("Two", TbStyle::Secondary),
-            ("Three", TbStyle::Positive),
-            ("Four", TbStyle::Destructive),
-        ];
-        Column::new()
-            .push(
-                NAMES
-                    .iter()
-                    .collect_row(|(name, style)| TextButton::new(name).style(*style))
-                    .spacing(3),
-            )
-            .push(
-                NAMES
-                    .iter()
-                    .collect_row(|(name, style)| {
-                        TextButton::new_with_on_press(name, || Cow::from(name.to_string()))
-                            .style(*style)
-                    })
-                    .spacing(3),
-            )
-            .spacing(3)
-            .pipe(container)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x()
-            .center_y()
-            .into()
+    fn view(&self) -> Element<'_, Self::Message, iced::Renderer<Self::Theme>> {
+        // const NAMES: &[(&str, TbStyle)] = &[
+        //     ("One", TbStyle::Primary),
+        //     ("Two", TbStyle::Secondary),
+        //     ("Three", TbStyle::Positive),
+        //     ("Four", TbStyle::Destructive),
+        // ];
+        // Column::new()
+        //     .push(
+        //         NAMES
+        //             .iter()
+        //             .collect_row(|(name, style)| TextButton::new(name).style(*style))
+        //             .spacing(3),
+        //     )
+        //     .push(
+        //         NAMES
+        //             .iter()
+        //             .collect_row(|(name, style)| {
+        //                 TextButton::new_with_on_press(name, || Cow::from(name.to_string()))
+        //                     .style(*style)
+        //             })
+        //             .spacing(3),
+        //     )
+        //     .spacing(3)
+        //     .pipe(container)
+        //     .width(Length::Fill)
+        //     .height(Length::Fill)
+        //     .center_x()
+        //     .center_y()
+        //     .into()
+        text("placeholder").into()
+    }
+
+    fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+        (Self, iced::Command::none())
     }
 }
 

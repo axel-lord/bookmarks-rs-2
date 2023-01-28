@@ -10,7 +10,7 @@
 
 use iced::{
     widget::{Column, Row},
-    Element,
+    Color, Element,
 };
 
 pub mod tabs;
@@ -51,5 +51,35 @@ where
         F: FnMut(Self::Item) -> E,
     {
         self.fold(Column::new(), |column, item| column.push(f(item)))
+    }
+}
+
+/// Renderer to use theme.
+pub type Renderer = iced::Renderer<Theme>;
+
+/// Custom theme used for ui.
+#[derive(Clone, Copy, Debug, Default)]
+pub enum Theme {
+    /// Light theme
+    #[default]
+    Light,
+}
+
+impl iced::application::StyleSheet for Theme {
+    type Style = ();
+
+    fn appearance(&self, _style: &Self::Style) -> iced::application::Appearance {
+        iced::application::Appearance {
+            background_color: Color::from_rgb8(255, 255, 255),
+            text_color: Color::from_rgb8(0, 0, 0),
+        }
+    }
+}
+
+impl iced::widget::text::StyleSheet for Theme {
+    type Style = ();
+
+    fn appearance(&self, _style: Self::Style) -> iced::widget::text::Appearance {
+        iced::widget::text::Appearance { color: None }
     }
 }
