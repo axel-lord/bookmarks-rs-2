@@ -12,6 +12,7 @@ use iced::{
     widget::{Column, Row},
     Color, Element,
 };
+use tap::Pipe;
 
 pub mod tabs;
 pub mod text_button;
@@ -90,6 +91,53 @@ impl BoxOptions {
             background: false,
         }
     }
+
+    /// Do not keep text color, no border, use backgorund.
+    #[must_use]
+    pub fn solid() -> Self {
+        Self {
+            border: false,
+            text: true,
+            background: true,
+        }
+    }
+
+    /// Do not keep text color, border, use backgorund.
+    #[must_use]
+    pub fn defined() -> Self {
+        Self {
+            border: true,
+            text: true,
+            background: true,
+        }
+    }
+
+    /// Construct with border set to passed value and the other fields default constructed.
+    #[must_use]
+    pub fn with_border(border: bool) -> Self {
+        Self {
+            border,
+            ..Default::default()
+        }
+    }
+
+    /// Construct with text set to passed value and the other fields default constructed.
+    #[must_use]
+    pub fn with_text(text: bool) -> Self {
+        Self {
+            text,
+            ..Default::default()
+        }
+    }
+
+    /// Construct with background set to passed value and the other fields default constructed.
+    #[must_use]
+    pub fn with_background(background: bool) -> Self {
+        Self {
+            background,
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for BoxOptions {
@@ -126,6 +174,25 @@ impl ContrastPalette {
             },
         }
     }
+
+    /// Mute the dim color.
+    #[must_use]
+    pub fn mute_dim(self, t: Option<f32>) -> Self {
+        Self {
+            dim: mute_color(self.dim, t),
+            ..self
+        }
+    }
+
+    /// Swap the dim and bright fields.
+    #[must_use]
+    pub fn invert(self) -> Self {
+        let Self { bright, dim } = self;
+        Self {
+            bright: dim,
+            dim: bright,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -139,11 +206,12 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
     (a + t * (b - a)).clamp(0.0, 1.0)
 }
 
-fn mute_color(Color { r, g, b, a }: Color) -> Color {
+fn mute_color(Color { r, g, b, a }: Color, t: Option<f32>) -> Color {
+    let t = t.unwrap_or(0.25);
     Color {
-        r: lerp(r, 0.5, 0.25),
-        g: lerp(g, 0.5, 0.25),
-        b: lerp(b, 0.5, 0.25),
+        r: lerp(r, 0.5, t),
+        g: lerp(g, 0.5, t),
+        b: lerp(b, 0.5, t),
         a,
     }
 }
@@ -161,7 +229,7 @@ impl BoxPalette {
             },
             Theme::DarkMute => BoxPalette {
                 text: palette.bright,
-                background: mute_color(palette.bright),
+                background: mute_color(palette.dim, None),
             },
         }
     }
@@ -173,6 +241,14 @@ impl BoxPalette {
             background: text,
         }
     }
+
+    fn mute_background(self, t: Option<f32>) -> Self {
+        let Self { text, background } = self;
+        Self {
+            text,
+            background: mute_color(background, t),
+        }
+    }
 }
 
 impl Default for ContrastPalette {
@@ -182,7 +258,72 @@ impl Default for ContrastPalette {
 }
 
 pub mod theme {
-    //! different themes for widgets.
+    //! Different themes for widgets.
+
+    use crate::{BoxOptions, ContrastPalette};
+    use paste::paste;
+
+    /// Container theme, used in some way by many widgets.
+    #[derive(Clone, Copy, Debug, Default)]
+    pub struct Container {
+        /// Colors used by container.
+        pub palette: ContrastPalette,
+        /// Options used by container.
+        pub options: BoxOptions,
+    }
+
+    macro_rules! container_presets {
+        ($(($p_preset:ident, $o_preset:ident)),+ $(,)?) => {
+            paste! {$(
+                #[must_use]
+                #[doc = "Preset with " $o_preset " options and " $p_preset " colors."]
+                pub fn [<$p_preset _ $o_preset>] () -> Self {
+                    Self {
+                        palette: ContrastPalette:: $p_preset (),
+                        options: BoxOptions:: $o_preset (),
+                    }
+                }
+            )*}
+        };
+    }
+
+    impl Container {
+        /// Construct with options set to passed value and other fields default.
+        #[must_use]
+        pub fn with_options(options: BoxOptions) -> Self {
+            Self {
+                options,
+                ..Default::default()
+            }
+        }
+
+        /// Construct with palette set to passed value and other fields default.
+        #[must_use]
+        pub fn with_palette(palette: ContrastPalette) -> Self {
+            Self {
+                palette,
+                ..Default::default()
+            }
+        }
+
+        container_presets![
+            (monochrome, solid),
+            (monochrome, defined),
+            (monochrome, minimal),
+        ];
+    }
+
+    impl From<ContrastPalette> for Container {
+        fn from(value: ContrastPalette) -> Self {
+            Self::with_palette(value)
+        }
+    }
+
+    impl From<BoxOptions> for Container {
+        fn from(value: BoxOptions) -> Self {
+            Self::with_options(value)
+        }
+    }
 }
 
 impl iced::application::StyleSheet for Theme {
@@ -198,58 +339,109 @@ impl iced::application::StyleSheet for Theme {
 }
 
 impl iced::widget::text::StyleSheet for Theme {
-    type Style = (ContrastPalette, BoxOptions);
+    type Style = theme::Container;
 
     fn appearance(&self, style: Self::Style) -> iced::widget::text::Appearance {
-        let palette = BoxPalette::from_contrast_palette(*self, style.0);
+        let palette = BoxPalette::from_contrast_palette(*self, style.palette);
         iced::widget::text::Appearance {
-            color: style.1.text.then_some(palette.text),
+            color: style.options.text.then_some(palette.text),
         }
     }
 }
 
 impl iced::widget::container::StyleSheet for Theme {
-    type Style = (ContrastPalette, BoxOptions);
+    type Style = theme::Container;
 
     fn appearance(&self, style: &Self::Style) -> iced::widget::container::Appearance {
-        let palette = BoxPalette::from_contrast_palette(*self, style.0);
+        let palette = BoxPalette::from_contrast_palette(*self, style.palette);
         iced::widget::container::Appearance {
             border_radius: 0.0,
-            border_width: if style.1.border { 1.0 } else { 0.0 },
-            text_color: style.1.text.then_some(palette.text),
-            background: style.1.background.then_some(palette.background.into()),
+            border_width: if style.options.border { 1.0 } else { 0.0 },
+            text_color: style.options.text.then_some(palette.text),
+            background: style
+                .options
+                .background
+                .then_some(palette.background.into()),
             border_color: palette.text,
         }
     }
 }
 
 impl iced::widget::toggler::StyleSheet for Theme {
-    type Style = (ContrastPalette, BoxOptions);
+    type Style = theme::Container;
 
     fn active(&self, style: &Self::Style, _is_active: bool) -> iced::widget::toggler::Appearance {
-        let palette = BoxPalette::from_contrast_palette(*self, style.0).invert();
+        let palette = BoxPalette::from_contrast_palette(*self, style.palette).pipe(|p| {
+            if style.options.border {
+                p
+            } else {
+                p.invert()
+            }
+        });
         iced::widget::toggler::Appearance {
             background: palette.background,
             foreground: palette.text,
-            background_border: None,
-            foreground_border: None,
+            background_border: style.options.border.then_some(palette.text),
+            foreground_border: style.options.border.then_some(palette.background),
         }
     }
 
     fn hovered(&self, style: &Self::Style, _is_active: bool) -> iced::widget::toggler::Appearance {
-        let palette = BoxPalette::from_contrast_palette(
-            *self,
-            ContrastPalette {
-                bright: style.0.bright,
-                dim: mute_color(style.0.dim),
-            },
-        )
-        .invert();
+        let palette = BoxPalette::from_contrast_palette(*self, style.palette.mute_dim(None))
+            .pipe(|p| if style.options.border { p } else { p.invert() });
         iced::widget::toggler::Appearance {
             background: palette.background,
             foreground: palette.text,
-            background_border: None,
-            foreground_border: None,
+            background_border: style.options.border.then_some(palette.text),
+            foreground_border: style.options.border.then_some(palette.background),
+        }
+    }
+}
+
+impl iced::widget::button::StyleSheet for Theme {
+    type Style = theme::Container;
+
+    fn active(&self, style: &Self::Style) -> iced::widget::button::Appearance {
+        let palette = BoxPalette::from_contrast_palette(*self, style.palette).pipe(|p| {
+            if style.options.border || (!style.options.background) {
+                p
+            } else {
+                p.invert()
+            }
+        });
+        iced::widget::button::Appearance {
+            background: style
+                .options
+                .background
+                .then_some(palette.background.into()),
+            border_radius: 3.0,
+            border_width: if style.options.border { 1.0 } else { 0.0 },
+            border_color: palette.text,
+            text_color: palette.text,
+            ..Default::default()
+        }
+    }
+
+    fn hovered(&self, style: &Self::Style) -> iced::widget::button::Appearance {
+        let palette = BoxPalette::from_contrast_palette(*self, style.palette)
+            .pipe(|p| {
+                if style.options.border || (!style.options.background) {
+                    p
+                } else {
+                    p.invert()
+                }
+            })
+            .mute_background(None);
+        iced::widget::button::Appearance {
+            background: style
+                .options
+                .background
+                .then_some(palette.background.into()),
+            border_radius: 3.0,
+            border_width: if style.options.border { 1.0 } else { 0.0 },
+            border_color: palette.text,
+            text_color: palette.text,
+            ..Default::default()
         }
     }
 }

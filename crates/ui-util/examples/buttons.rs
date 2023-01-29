@@ -1,7 +1,7 @@
-use bookmark_ui_util::Theme;
+use bookmark_ui_util::{theme, Theme};
 use iced::{
-    widget::{container, text, toggler, Row},
-    Application, Element, Length, Settings,
+    widget::{button, container, text, toggler, Column, Row},
+    Alignment, Application, Element, Length, Settings,
 };
 use std::borrow::Cow;
 use tap::Pipe;
@@ -11,7 +11,7 @@ struct App {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Message {
     Text(Cow<'static, str>),
     Theme(Theme),
@@ -65,15 +65,58 @@ impl Application for App {
         //     .center_x()
         //     .center_y()
         //     .into()
-        Row::new()
-            .push(text("use dark mode"))
+        Column::new()
             .push(
-                toggler(None, matches!(self.theme, Theme::Dark), |b| {
-                    Message::Theme(if b { Theme::Dark } else { Theme::Light })
-                })
-                .width(Length::Shrink),
+                Row::new()
+                    .spacing(3)
+                    .align_items(Alignment::Center)
+                    .push(text("use dark mode"))
+                    .push(
+                        toggler(None, matches!(self.theme, Theme::Dark), |b| {
+                            Message::Theme(if b { Theme::Dark } else { Theme::Light })
+                        })
+                        .width(Length::Shrink)
+                        .style(theme::Container::monochrome_defined()),
+                    ),
+            )
+            .push(
+                Row::new()
+                    .spacing(3)
+                    .align_items(Alignment::Center)
+                    .push(text("use dark mute mode"))
+                    .push(
+                        toggler(None, matches!(self.theme, Theme::DarkMute), |b| {
+                            Message::Theme(if b { Theme::DarkMute } else { Theme::Light })
+                        })
+                        .width(Length::Shrink)
+                        .style(theme::Container::monochrome_minimal()),
+                    ),
+            )
+            .push(
+                Row::new()
+                    .spacing(3)
+                    .align_items(Alignment::Center)
+                    .push(
+                        button("One")
+                            .style(theme::Container::monochrome_minimal())
+                            .padding(3)
+                            .on_press(Message::Text("One".into())),
+                    )
+                    .push(
+                        button("Two")
+                            .style(theme::Container::monochrome_solid())
+                            .padding(3)
+                            .on_press(Message::Text("Two".into())),
+                    )
+                    .push(
+                        button("Three")
+                            .style(theme::Container::monochrome_defined())
+                            .padding(3)
+                            .on_press(Message::Text("Three".into())),
+                    ),
             )
             .spacing(3)
+            .align_items(Alignment::End)
             .pipe(container)
             .center_x()
             .center_y()
@@ -100,7 +143,7 @@ impl Application for App {
 fn main() -> iced::Result {
     App::run(Settings {
         window: iced::window::Settings {
-            size: (250, 100),
+            size: (500, 100),
             ..Default::default()
         },
         ..Default::default()
