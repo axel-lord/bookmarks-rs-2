@@ -76,7 +76,7 @@ impl Application for App {
                             Message::Theme(if b { Theme::Dark } else { Theme::Light })
                         })
                         .width(Length::Shrink)
-                        .style(theme::Container::monochrome_defined()),
+                        .style(theme::Container::Theme),
                     ),
             )
             .push(
@@ -89,7 +89,7 @@ impl Application for App {
                             Message::Theme(if b { Theme::DarkMute } else { Theme::Light })
                         })
                         .width(Length::Shrink)
-                        .style(theme::Container::monochrome_minimal()),
+                        .style(theme::Container::Theme),
                     ),
             )
             .push(
@@ -98,19 +98,19 @@ impl Application for App {
                     .align_items(Alignment::Center)
                     .push(
                         button("One")
-                            .style(theme::Container::monochrome_minimal())
+                            .style(theme::Container::Theme)
                             .padding(3)
                             .on_press(Message::Text("One".into())),
                     )
                     .push(
                         button("Two")
-                            .style(theme::Container::monochrome_solid())
+                            .style(theme::Container::Theme)
                             .padding(3)
                             .on_press(Message::Text("Two".into())),
                     )
                     .push(
                         button("Three")
-                            .style(theme::Container::monochrome_defined())
+                            .style(theme::Container::Theme)
                             .padding(3)
                             .on_press(Message::Text("Three".into())),
                     ),

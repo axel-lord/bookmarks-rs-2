@@ -8,14 +8,16 @@
     rustdoc::all
 )]
 
+use color::{ColorManipExt, ContrastPalette};
 use iced::{
     widget::{Column, Row},
-    Color, Element,
+    Element,
 };
-use tap::Pipe;
 
+pub mod color;
 pub mod tabs;
 pub mod text_button;
+pub mod theme;
 
 /// Extension trait to create rows or columns from an iterator.
 pub trait IteratorWidgetExt<Message>: Iterator {
@@ -71,26 +73,6 @@ pub enum Theme {
 }
 
 impl Theme {
-    /// Get [`BoxPalette`] representing current theme.
-    #[must_use]
-    pub fn box_palette(&self) -> BoxPalette {
-        let ContrastPalette { bright, dim } = self.contrast_palette();
-        match self {
-            Theme::Light => BoxPalette {
-                text: dim,
-                background: bright,
-            },
-            Theme::Dark => BoxPalette {
-                text: bright,
-                background: dim,
-            },
-            Theme::DarkMute => BoxPalette {
-                text: bright,
-                background: mute_color(dim, None),
-            },
-        }
-    }
-
     /// Get [`ContrastPalette`] representing current theme.
     #[must_use]
     pub fn contrast_palette(&self) -> ContrastPalette {
@@ -99,52 +81,22 @@ impl Theme {
 }
 
 /// Configuration for boxes.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct BoxOptions {
     /// Whether to show a border, only applies if possible.
-    pub border: bool,
+    pub show_border: bool,
     /// Whether to set text color, only applies if possible.
-    pub text: bool,
+    pub update_text: bool,
     /// Whether to set background color, only applies if possible.
-    pub background: bool,
+    pub opaque_background: bool,
 }
 
 impl BoxOptions {
-    /// Keep text color, no border, no backgorund.
-    #[must_use]
-    pub fn minimal() -> Self {
-        Self {
-            border: false,
-            text: false,
-            background: false,
-        }
-    }
-
-    /// Do not keep text color, no border, use backgorund.
-    #[must_use]
-    pub fn solid() -> Self {
-        Self {
-            border: false,
-            text: true,
-            background: true,
-        }
-    }
-
-    /// Do not keep text color, border, use backgorund.
-    #[must_use]
-    pub fn defined() -> Self {
-        Self {
-            border: true,
-            text: true,
-            background: true,
-        }
-    }
-
     /// Construct with border set to passed value and the other fields default constructed.
     #[must_use]
     pub fn with_border(border: bool) -> Self {
         Self {
-            border,
+            show_border: border,
             ..Default::default()
         }
     }
@@ -153,7 +105,7 @@ impl BoxOptions {
     #[must_use]
     pub fn with_text(text: bool) -> Self {
         Self {
-            text,
+            update_text: text,
             ..Default::default()
         }
     }
@@ -162,172 +114,9 @@ impl BoxOptions {
     #[must_use]
     pub fn with_background(background: bool) -> Self {
         Self {
-            background,
+            opaque_background: background,
             ..Default::default()
         }
-    }
-}
-
-impl Default for BoxOptions {
-    fn default() -> Self {
-        Self::minimal()
-    }
-}
-
-/// A simple box palette constisting of colors for background text and border.
-#[derive(Clone, Copy, Debug)]
-pub struct ContrastPalette {
-    /// Bright color of this palette, in light mode is background.
-    pub bright: Color,
-    /// Dim color of this palette, in light mode is text and border.
-    pub dim: Color,
-}
-
-impl ContrastPalette {
-    /// Get a monochrome (black and white) color palette.
-    #[must_use]
-    pub fn monochrome() -> Self {
-        Self {
-            bright: Color {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 1.0,
-            },
-            dim: Color {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
-            },
-        }
-    }
-
-    /// Mute the dim color.
-    #[must_use]
-    pub fn mute_dim(self, t: Option<f32>) -> Self {
-        Self {
-            dim: mute_color(self.dim, t),
-            ..self
-        }
-    }
-
-    /// Swap the dim and bright fields.
-    #[must_use]
-    pub fn invert(self) -> Self {
-        let Self { bright, dim } = self;
-        Self {
-            bright: dim,
-            dim: bright,
-        }
-    }
-}
-
-/// A Palette with values for foreground/text and background.
-#[derive(Debug, Clone, Copy)]
-pub struct BoxPalette {
-    /// Foreground/text/outline color.
-    pub text: Color,
-    /// Background color.
-    pub background: Color,
-}
-
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    let [a, b, t] = [a, b, t].map(|n| n.clamp(0.0, 1.0));
-    (a + t * (b - a)).clamp(0.0, 1.0)
-}
-
-fn mute_color(Color { r, g, b, a }: Color, t: Option<f32>) -> Color {
-    let t = t.unwrap_or(0.25);
-    Color {
-        r: lerp(r, 0.5, t),
-        g: lerp(g, 0.5, t),
-        b: lerp(b, 0.5, t),
-        a,
-    }
-}
-
-impl BoxPalette {
-    /// Create a [`BoxPalette`] from a [`ContrastPalette`] and a theme.
-    #[must_use]
-    pub fn from_contrast_palette(theme: Theme, palette: ContrastPalette) -> Self {
-        match theme {
-            Theme::Light => BoxPalette {
-                text: palette.dim,
-                background: palette.bright,
-            },
-            Theme::Dark => BoxPalette {
-                text: palette.bright,
-                background: palette.dim,
-            },
-            Theme::DarkMute => BoxPalette {
-                text: palette.bright,
-                background: mute_color(palette.dim, None),
-            },
-        }
-    }
-
-    /// Swap background and foreground.
-    #[must_use]
-    pub fn invert(self) -> Self {
-        let Self { text, background } = self;
-        Self {
-            text: background,
-            background: text,
-        }
-    }
-
-    /// Mute the background color somewhat.
-    #[must_use]
-    pub fn mute_background(self, t: Option<f32>) -> Self {
-        let Self { text, background } = self;
-        Self {
-            text,
-            background: mute_color(background, t),
-        }
-    }
-}
-
-impl Default for ContrastPalette {
-    fn default() -> Self {
-        Self::monochrome()
-    }
-}
-
-pub mod theme {
-    //! Different themes for widgets.
-
-    use crate::{BoxOptions, BoxPalette, ContrastPalette, Theme};
-    use bookmark_util::Somewhere;
-    use iced::Color;
-    // use paste::paste;
-
-    /// Style used for [Container][iced::widget::Container] widgets
-    #[derive(Default)]
-    pub enum Container {
-        /// Use the default style of the current theme.
-        #[default]
-        Theme,
-        /// Use a palette based on contrast swapping what is foreground and background based on
-        /// theme
-        ContrastPalette(ContrastPalette, BoxOptions),
-        /// Use a palette where the foreground and background values are set.
-        BoxPalette(BoxPalette, BoxOptions),
-        /// Implement the style yourself and pass it.
-        Custom(Somewhere<dyn iced::widget::container::StyleSheet<Style = Theme>>),
-    }
-
-    /// Style used for [Text][iced::widget::Text] widgets.
-    #[derive(Default, Clone, Copy, Debug)]
-    pub enum Text {
-        /// Use the default style of the current theme.
-        #[default]
-        Theme,
-        /// Use a palette based on contrast swapping what is foreground and background based on
-        /// theme
-        ContrastPalette(ContrastPalette),
-        /// Set the text color to the passed color.
-        Color(Color),
     }
 }
 
@@ -354,7 +143,7 @@ impl iced::widget::text::StyleSheet for Theme {
                 theme::Text::ContrastPalette(palette) => match self {
                     Theme::Light => palette.dim,
                     Theme::Dark => palette.bright,
-                    Theme::DarkMute => mute_color(palette.dim, None),
+                    Theme::DarkMute => palette.dim.mute(None),
                 },
                 theme::Text::Color(color) => color,
             }),
@@ -365,7 +154,7 @@ impl iced::widget::text::StyleSheet for Theme {
 impl iced::widget::container::StyleSheet for Theme {
     type Style = theme::Container;
 
-    fn appearance(&self, style: &Self::Style) -> iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
         // let palette = BoxPalette::from_contrast_palette(*self, style.palette);
         // iced::widget::container::Appearance {
         //     border_radius: 0.0,
@@ -384,7 +173,7 @@ impl iced::widget::container::StyleSheet for Theme {
 impl iced::widget::toggler::StyleSheet for Theme {
     type Style = theme::Container;
 
-    fn active(&self, style: &Self::Style, _is_active: bool) -> iced::widget::toggler::Appearance {
+    fn active(&self, _style: &Self::Style, _is_active: bool) -> iced::widget::toggler::Appearance {
         // let palette = BoxPalette::from_contrast_palette(*self, style.palette).pipe(|p| {
         //     if style.options.border {
         //         p
@@ -401,7 +190,7 @@ impl iced::widget::toggler::StyleSheet for Theme {
         todo!()
     }
 
-    fn hovered(&self, style: &Self::Style, _is_active: bool) -> iced::widget::toggler::Appearance {
+    fn hovered(&self, _style: &Self::Style, _is_active: bool) -> iced::widget::toggler::Appearance {
         // let palette = BoxPalette::from_contrast_palette(*self, style.palette.mute_dim(None))
         //     .pipe(|p| if style.options.border { p } else { p.invert() });
         // iced::widget::toggler::Appearance {
@@ -417,7 +206,7 @@ impl iced::widget::toggler::StyleSheet for Theme {
 impl iced::widget::button::StyleSheet for Theme {
     type Style = theme::Container;
 
-    fn active(&self, style: &Self::Style) -> iced::widget::button::Appearance {
+    fn active(&self, _style: &Self::Style) -> iced::widget::button::Appearance {
         // let palette = BoxPalette::from_contrast_palette(*self, style.palette).pipe(|p| {
         //     if style.options.border || (!style.options.background) {
         //         p
@@ -439,7 +228,7 @@ impl iced::widget::button::StyleSheet for Theme {
         todo!()
     }
 
-    fn hovered(&self, style: &Self::Style) -> iced::widget::button::Appearance {
+    fn hovered(&self, _style: &Self::Style) -> iced::widget::button::Appearance {
         // let palette = BoxPalette::from_contrast_palette(*self, style.palette)
         //     .pipe(|p| {
         //         if style.options.border || (!style.options.background) {
