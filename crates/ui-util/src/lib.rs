@@ -8,10 +8,10 @@
     rustdoc::all
 )]
 
-use color::{ColorManipExt, ContrastPalette};
+use color::{ColorManipExt, ContrastPalette, Palette, ThemePalette};
 use iced::{
     widget::{Column, Row},
-    Element,
+    Background, Color, Element,
 };
 
 pub mod color;
@@ -73,61 +73,90 @@ pub enum Theme {
 }
 
 impl Theme {
-    /// Get [`ContrastPalette`] representing current theme.
+    /// Get [`ContrastPalette`] representing current theme base.
     #[must_use]
     pub fn contrast_palette(&self) -> ContrastPalette {
         ContrastPalette::monochrome()
     }
-}
 
-/// Configuration for boxes.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct BoxOptions {
-    /// Whether to show a border, only applies if possible.
-    pub show_border: bool,
-    /// Whether to set text color, only applies if possible.
-    pub update_text: bool,
-    /// Whether to set background color, only applies if possible.
-    pub opaque_background: bool,
-}
-
-impl BoxOptions {
-    /// Construct with border set to passed value and the other fields default constructed.
+    /// Get a [`ContrastPalette`] representing current theme alt.
     #[must_use]
-    pub fn with_border(border: bool) -> Self {
-        Self {
-            show_border: border,
-            ..Default::default()
+    pub fn contrast_palette_alt(&self) -> ContrastPalette {
+        ContrastPalette {
+            bright: Color::from_rgb8(50, 80, 200),
+            dim: Color::from_rgb8(0, 0, 20),
+        }
+    }
+    /// Get a [`ThemePalette`] representing the current theme.
+    #[must_use]
+    pub fn theme_palette(&self) -> ThemePalette {
+        ThemePalette {
+            base: self.convert_palette(self.contrast_palette()),
+            alt: self.convert_palette(self.contrast_palette_alt()),
         }
     }
 
-    /// Construct with text set to passed value and the other fields default constructed.
+    /// Get a [Palette] from a [`ContrastPalette`] using current theme.
     #[must_use]
-    pub fn with_text(text: bool) -> Self {
-        Self {
-            update_text: text,
-            ..Default::default()
+    pub fn convert_palette(&self, ContrastPalette { bright, dim }: ContrastPalette) -> Palette {
+        match self {
+            Theme::Light => Palette {
+                border: dim,
+                background: bright,
+                foreground: dim,
+                text: dim,
+            },
+            Theme::Dark => Palette {
+                border: bright,
+                background: dim,
+                foreground: bright,
+                text: bright,
+            },
+            Theme::DarkMute => Palette {
+                border: bright,
+                background: dim.mute(None),
+                foreground: bright,
+                text: bright,
+            },
         }
     }
 
-    /// Construct with background set to passed value and the other fields default constructed.
+    /// Get the border radius in use.
     #[must_use]
-    pub fn with_background(background: bool) -> Self {
-        Self {
-            opaque_background: background,
-            ..Default::default()
-        }
+    pub fn border_radius(&self) -> f32 {
+        0.0
     }
 }
 
 impl iced::application::StyleSheet for Theme {
-    type Style = ContrastPalette;
+    type Style = theme::Application;
 
     fn appearance(&self, style: &Self::Style) -> iced::application::Appearance {
-        let palette = BoxPalette::from_contrast_palette(*self, *style);
-        iced::application::Appearance {
-            background_color: palette.background,
-            text_color: palette.text,
+        use iced::application::Appearance;
+        match style {
+            theme::Application::Theme => {
+                let Palette {
+                    background, text, ..
+                } = self.theme_palette().base;
+                Appearance {
+                    background_color: background,
+                    text_color: text,
+                }
+            }
+            theme::Application::ContrastPalette(palette) => {
+                let Palette {
+                    background, text, ..
+                } = self.convert_palette(*palette);
+                Appearance {
+                    background_color: background,
+                    text_color: text,
+                }
+            }
+            theme::Application::Manual { background, text } => Appearance {
+                background_color: *background,
+                text_color: *text,
+            },
+            theme::Application::Custom(style) => style.appearance(self),
         }
     }
 }
@@ -139,12 +168,8 @@ impl iced::widget::text::StyleSheet for Theme {
         use iced::widget::text::Appearance;
         Appearance {
             color: style.map(|style| match style {
-                theme::Text::Theme => todo!(),
-                theme::Text::ContrastPalette(palette) => match self {
-                    Theme::Light => palette.dim,
-                    Theme::Dark => palette.bright,
-                    Theme::DarkMute => palette.dim.mute(None),
-                },
+                theme::Text::Theme => self.theme_palette().base.text,
+                theme::Text::ContrastPalette(palette) => self.convert_palette(palette).text,
                 theme::Text::Color(color) => color,
             }),
         }
@@ -152,103 +177,206 @@ impl iced::widget::text::StyleSheet for Theme {
 }
 
 impl iced::widget::container::StyleSheet for Theme {
-    type Style = theme::Container;
+    type Style = Option<theme::Container>;
 
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        // let palette = BoxPalette::from_contrast_palette(*self, style.palette);
-        // iced::widget::container::Appearance {
-        //     border_radius: 0.0,
-        //     border_width: if style.options.border { 1.0 } else { 0.0 },
-        //     text_color: style.options.text.then_some(palette.text),
-        //     background: style
-        //         .options
-        //         .background
-        //         .then_some(palette.background.into()),
-        //     border_color: palette.text,
-        // }
-        todo!()
+    fn appearance(&self, style: &Self::Style) -> iced::widget::container::Appearance {
+        use iced::widget::container::Appearance;
+        style.as_ref().map_or(
+            Appearance {
+                text_color: None,
+                background: None,
+                border_radius: 0.0,
+                border_width: 0.0,
+                border_color: Color::BLACK,
+            },
+            |style| match style {
+                theme::Container::Theme => {
+                    let Palette {
+                        border,
+                        background,
+                        text,
+                        ..
+                    } = self.theme_palette().alt;
+                    Appearance {
+                        text_color: Some(text),
+                        background: Some(background.into()),
+                        border_radius: self.border_radius(),
+                        border_width: 0.0,
+                        border_color: border,
+                    }
+                }
+                theme::Container::ContrastPalette {
+                    palette,
+                    opaque_background,
+                    show_border,
+                    update_text,
+                } => {
+                    let Palette {
+                        border,
+                        background,
+                        text,
+                        ..
+                    } = self.convert_palette(*palette);
+                    Appearance {
+                        text_color: update_text.then_some(text),
+                        background: opaque_background.then_some(background.into()),
+                        border_radius: self.border_radius(),
+                        border_width: if *show_border { 1.0 } else { 0.0 },
+                        border_color: border,
+                    }
+                }
+                theme::Container::Manual {
+                    background,
+                    text,
+                    border,
+                } => Appearance {
+                    text_color: *text,
+                    background: background.map(Background::from),
+                    border_radius: self.border_radius(),
+                    border_width: if border.is_some() { 1.0 } else { 0.0 },
+                    border_color: border.unwrap_or(Color::BLACK),
+                },
+                theme::Container::Custom(custom) => custom.appearance(self),
+            },
+        )
+    }
+}
+
+fn toggler_appearance(
+    Palette {
+        background,
+        foreground,
+        ..
+    }: Palette,
+) -> iced::widget::toggler::Appearance {
+    iced::widget::toggler::Appearance {
+        background: foreground,
+        background_border: None,
+        foreground: background,
+        foreground_border: Some(foreground),
+    }
+}
+
+fn toggler_alt_appearance(
+    Palette {
+        background,
+        foreground,
+        ..
+    }: Palette,
+) -> iced::widget::toggler::Appearance {
+    iced::widget::toggler::Appearance {
+        background,
+        background_border: Some(foreground),
+        foreground,
+        foreground_border: Some(background),
     }
 }
 
 impl iced::widget::toggler::StyleSheet for Theme {
-    type Style = theme::Container;
+    type Style = theme::Toggler;
 
-    fn active(&self, _style: &Self::Style, _is_active: bool) -> iced::widget::toggler::Appearance {
-        // let palette = BoxPalette::from_contrast_palette(*self, style.palette).pipe(|p| {
-        //     if style.options.border {
-        //         p
-        //     } else {
-        //         p.invert()
-        //     }
-        // });
-        // iced::widget::toggler::Appearance {
-        //     background: palette.background,
-        //     foreground: palette.text,
-        //     background_border: style.options.border.then_some(palette.text),
-        //     foreground_border: style.options.border.then_some(palette.background),
-        // }
-        todo!()
+    fn active(&self, style: &Self::Style, is_active: bool) -> iced::widget::toggler::Appearance {
+        match style {
+            theme::Toggler::Custom(style_sheet) => style_sheet.active(self, is_active),
+            theme::Toggler::Theme => toggler_appearance(self.theme_palette().base),
+            theme::Toggler::ThemeAlt => toggler_alt_appearance(self.theme_palette().base),
+        }
     }
 
-    fn hovered(&self, _style: &Self::Style, _is_active: bool) -> iced::widget::toggler::Appearance {
-        // let palette = BoxPalette::from_contrast_palette(*self, style.palette.mute_dim(None))
-        //     .pipe(|p| if style.options.border { p } else { p.invert() });
-        // iced::widget::toggler::Appearance {
-        //     background: palette.background,
-        //     foreground: palette.text,
-        //     background_border: style.options.border.then_some(palette.text),
-        //     foreground_border: style.options.border.then_some(palette.background),
-        // }
-        todo!()
+    fn hovered(&self, style: &Self::Style, is_active: bool) -> iced::widget::toggler::Appearance {
+        match style {
+            theme::Toggler::Custom(style_sheet) => style_sheet.hovered(self, is_active),
+            theme::Toggler::Theme => toggler_appearance(self.theme_palette().alt),
+            theme::Toggler::ThemeAlt => toggler_alt_appearance(self.theme_palette().alt),
+        }
+    }
+}
+
+fn button_appearance(
+    Palette {
+        background,
+        foreground,
+        ..
+    }: Palette,
+    border_radius: f32,
+) -> iced::widget::button::Appearance {
+    iced::widget::button::Appearance {
+        background: Some(foreground).map(Background::from),
+        border_radius,
+        border_width: 0.0,
+        border_color: Color::BLACK,
+        text_color: background,
+        ..Default::default()
+    }
+}
+
+fn button_alt_appearance(
+    Palette {
+        background,
+        foreground,
+        text,
+        ..
+    }: Palette,
+    border_radius: f32,
+) -> iced::widget::button::Appearance {
+    iced::widget::button::Appearance {
+        background: Some(background).map(Background::from),
+        border_radius,
+        border_width: 1.0,
+        border_color: foreground,
+        text_color: text,
+        ..Default::default()
     }
 }
 
 impl iced::widget::button::StyleSheet for Theme {
-    type Style = theme::Container;
+    type Style = theme::Button;
 
-    fn active(&self, _style: &Self::Style) -> iced::widget::button::Appearance {
-        // let palette = BoxPalette::from_contrast_palette(*self, style.palette).pipe(|p| {
-        //     if style.options.border || (!style.options.background) {
-        //         p
-        //     } else {
-        //         p.invert()
-        //     }
-        // });
-        // iced::widget::button::Appearance {
-        //     background: style
-        //         .options
-        //         .background
-        //         .then_some(palette.background.into()),
-        //     border_radius: 3.0,
-        //     border_width: if style.options.border { 1.0 } else { 0.0 },
-        //     border_color: palette.text,
-        //     text_color: palette.text,
-        //     ..Default::default()
-        // }
-        todo!()
+    fn active(&self, style: &Self::Style) -> iced::widget::button::Appearance {
+        match style {
+            theme::Button::Custom(style_sheet) => style_sheet.active(self),
+            theme::Button::Theme => {
+                button_appearance(self.theme_palette().base, self.border_radius())
+            }
+            theme::Button::ThemeAlt => {
+                button_alt_appearance(self.theme_palette().base, self.border_radius())
+            }
+        }
     }
 
-    fn hovered(&self, _style: &Self::Style) -> iced::widget::button::Appearance {
-        // let palette = BoxPalette::from_contrast_palette(*self, style.palette)
-        //     .pipe(|p| {
-        //         if style.options.border || (!style.options.background) {
-        //             p
-        //         } else {
-        //             p.invert()
-        //         }
-        //     })
-        //     .mute_background(None);
-        // iced::widget::button::Appearance {
-        //     background: style
-        //         .options
-        //         .background
-        //         .then_some(palette.background.into()),
-        //     border_radius: 3.0,
-        //     border_width: if style.options.border { 1.0 } else { 0.0 },
-        //     border_color: palette.text,
-        //     text_color: palette.text,
-        //     ..Default::default()
-        // }
-        todo!()
+    fn hovered(&self, style: &Self::Style) -> iced::widget::button::Appearance {
+        match style {
+            theme::Button::Custom(style_sheet) => style_sheet.hovered(self),
+            theme::Button::Theme => {
+                button_appearance(self.theme_palette().alt, self.border_radius())
+            }
+            theme::Button::ThemeAlt => {
+                button_alt_appearance(self.theme_palette().alt, self.border_radius())
+            }
+        }
+    }
+
+    fn pressed(&self, style: &Self::Style) -> iced::widget::button::Appearance {
+        match style {
+            theme::Button::Custom(style_sheet) => style_sheet.pressed(self),
+            theme::Button::Theme => {
+                button_appearance(self.theme_palette().alt.mute(None), self.border_radius())
+            }
+            theme::Button::ThemeAlt => {
+                button_alt_appearance(self.theme_palette().alt.mute(None), self.border_radius())
+            }
+        }
+    }
+
+    fn disabled(&self, style: &Self::Style) -> iced::widget::button::Appearance {
+        match style {
+            theme::Button::Custom(style_sheet) => style_sheet.disabled(self),
+            theme::Button::Theme => {
+                button_appearance(self.theme_palette().base.mute(None), self.border_radius())
+            }
+            theme::Button::ThemeAlt => {
+                button_alt_appearance(self.theme_palette().base.mute(None), self.border_radius())
+            }
+        }
     }
 }

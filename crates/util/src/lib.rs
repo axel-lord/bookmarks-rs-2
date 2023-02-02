@@ -8,7 +8,9 @@
     rustdoc::all
 )]
 
-use std::ops::Deref;
+use std::{any, fmt::Debug, ops::Deref, sync::Arc};
+
+use tap::Pipe;
 
 /// Trait extending all types with utility methods.
 pub trait AnyWithExt {
@@ -50,15 +52,19 @@ impl<T> AnyWithExt for T {}
 
 /// An object that exists "somewhere" be it in a box, or staticaly somwhere else. Primary use is
 /// for trait objects.
+pub struct Somewhere<T>(SomewhereInner<T>)
+where
+    T: 'static + ?Sized;
+
 #[derive(Clone, Debug)]
-pub enum Somewhere<T>
+enum SomewhereInner<T>
 where
     T: 'static + ?Sized,
 {
     /// A reference to the value if it exists somewhere else.
     Borrowed(&'static T),
     /// A Box to the value if it is owned by self.
-    Owned(Box<T>),
+    Owned(Arc<T>),
 }
 
 impl<T> From<&'static T> for Somewhere<T>
@@ -66,7 +72,25 @@ where
     T: 'static + ?Sized,
 {
     fn from(value: &'static T) -> Self {
-        Self::Borrowed(value)
+        Self(SomewhereInner::Borrowed(value))
+    }
+}
+
+impl<T> From<T> for Somewhere<T>
+where
+    T: 'static + Sized,
+{
+    fn from(value: T) -> Self {
+        value.pipe(Arc::new).pipe(SomewhereInner::Owned).pipe(Self)
+    }
+}
+
+impl<T> From<Arc<T>> for Somewhere<T>
+where
+    T: 'static + ?Sized,
+{
+    fn from(value: Arc<T>) -> Self {
+        value.pipe(SomewhereInner::Owned).pipe(Self)
     }
 }
 
@@ -76,9 +100,31 @@ where
 {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        match self {
-            Somewhere::Borrowed(val) => val,
-            Somewhere::Owned(val) => val,
+        match self.0 {
+            SomewhereInner::Borrowed(val) => val,
+            SomewhereInner::Owned(ref val) => val,
         }
+    }
+}
+
+impl<T> Clone for Somewhere<T>
+where
+    T: 'static + ?Sized,
+{
+    fn clone(&self) -> Self {
+        match self.0 {
+            SomewhereInner::Borrowed(val) => SomewhereInner::Borrowed(val),
+            SomewhereInner::Owned(ref val) => SomewhereInner::Owned(val.clone()),
+        }
+        .pipe(Self)
+    }
+}
+
+impl<T> Debug for Somewhere<T>
+where
+    T: 'static + ?Sized,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Somewhere({})", any::type_name::<T>())
     }
 }

@@ -1,4 +1,4 @@
-use bookmark_ui_util::{theme, Theme};
+use bookmark_ui_util::Theme;
 use iced::{
     widget::{button, container, text, toggler, Column, Row},
     Alignment, Application, Element, Length, Settings,
@@ -36,35 +36,6 @@ impl Application for App {
     }
 
     fn view(&self) -> Element<'_, Self::Message, iced::Renderer<Self::Theme>> {
-        // const NAMES: &[(&str, TbStyle)] = &[
-        //     ("One", TbStyle::Primary),
-        //     ("Two", TbStyle::Secondary),
-        //     ("Three", TbStyle::Positive),
-        //     ("Four", TbStyle::Destructive),
-        // ];
-        // Column::new()
-        //     .push(
-        //         NAMES
-        //             .iter()
-        //             .collect_row(|(name, style)| TextButton::new(name).style(*style))
-        //             .spacing(3),
-        //     )
-        //     .push(
-        //         NAMES
-        //             .iter()
-        //             .collect_row(|(name, style)| {
-        //                 TextButton::new_with_on_press(name, || Cow::from(name.to_string()))
-        //                     .style(*style)
-        //             })
-        //             .spacing(3),
-        //     )
-        //     .spacing(3)
-        //     .pipe(container)
-        //     .width(Length::Fill)
-        //     .height(Length::Fill)
-        //     .center_x()
-        //     .center_y()
-        //     .into()
         Column::new()
             .push(
                 Row::new()
@@ -75,8 +46,7 @@ impl Application for App {
                         toggler(None, matches!(self.theme, Theme::Dark), |b| {
                             Message::Theme(if b { Theme::Dark } else { Theme::Light })
                         })
-                        .width(Length::Shrink)
-                        .style(theme::Container::Theme),
+                        .width(Length::Shrink),
                     ),
             )
             .push(
@@ -88,8 +58,7 @@ impl Application for App {
                         toggler(None, matches!(self.theme, Theme::DarkMute), |b| {
                             Message::Theme(if b { Theme::DarkMute } else { Theme::Light })
                         })
-                        .width(Length::Shrink)
-                        .style(theme::Container::Theme),
+                        .width(Length::Shrink),
                     ),
             )
             .push(
@@ -98,19 +67,16 @@ impl Application for App {
                     .align_items(Alignment::Center)
                     .push(
                         button("One")
-                            .style(theme::Container::Theme)
                             .padding(3)
                             .on_press(Message::Text("One".into())),
                     )
                     .push(
                         button("Two")
-                            .style(theme::Container::Theme)
                             .padding(3)
                             .on_press(Message::Text("Two".into())),
                     )
                     .push(
                         button("Three")
-                            .style(theme::Container::Theme)
                             .padding(3)
                             .on_press(Message::Text("Three".into())),
                     ),

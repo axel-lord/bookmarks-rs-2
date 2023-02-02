@@ -2,6 +2,47 @@
 
 use iced::Color;
 
+/// A more advanced palette with general rules for current theme.
+#[derive(Clone, Copy, Debug)]
+pub struct ThemePalette {
+    /// Primary colors of theme.
+    pub base: Palette,
+    /// Secondary colors of theme.
+    pub alt: Palette,
+}
+
+/// The palette for an item in a [`ThemePalette`].
+#[derive(Clone, Copy, Debug)]
+pub struct Palette {
+    /// Used to set border color.
+    pub border: Color,
+    /// Used to set background color.
+    pub background: Color,
+    /// Used to set foreground color.
+    pub foreground: Color,
+    /// Used to set text color.
+    pub text: Color,
+}
+
+impl Palette {
+    /// Mute a palette by default value or given amount.
+    #[must_use]
+    pub fn mute(self, t: Option<f32>) -> Self {
+        let Palette {
+            border,
+            background,
+            foreground,
+            text,
+        } = self;
+        Palette {
+            border: border.mute(t),
+            background: background.mute(t),
+            foreground: foreground.mute(t),
+            text: text.mute(t),
+        }
+    }
+}
+
 /// A simple box palette constisting of colors for background text and border.
 #[derive(Clone, Copy, Debug)]
 pub struct ContrastPalette {
@@ -66,9 +107,11 @@ impl Default for ContrastPalette {
 #[allow(clippy::module_name_repetitions)]
 pub trait ColorManipExt {
     /// Mute the if given by amount t 0..1.
+    #[must_use]
     fn mute(self, t: Option<f32>) -> Self;
 
     /// Lerp between two colors.
+    #[must_use]
     fn lerp(self, other: Self, t: f32) -> Self;
 }
 
