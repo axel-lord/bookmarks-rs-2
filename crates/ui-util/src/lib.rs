@@ -13,6 +13,7 @@ use iced::{
     widget::{Column, Row},
     Background, Color, Element,
 };
+use theme::Var;
 
 pub mod color;
 pub mod tabs;
@@ -83,8 +84,8 @@ impl Theme {
     #[must_use]
     pub fn contrast_palette_alt(&self) -> ContrastPalette {
         ContrastPalette {
-            bright: Color::from_rgb8(50, 80, 200),
-            dim: Color::from_rgb8(0, 0, 20),
+            bright: Color::from_rgb8(150, 200, 255),
+            dim: Color::from_rgb8(0, 0, 40),
         }
     }
     /// Get a [`ThemePalette`] representing the current theme.
@@ -190,7 +191,7 @@ impl iced::widget::container::StyleSheet for Theme {
                 border_color: Color::BLACK,
             },
             |style| match style {
-                theme::Container::Theme => {
+                theme::Container::Theme(Var::Alt) => {
                     let Palette {
                         border,
                         background,
@@ -201,8 +202,22 @@ impl iced::widget::container::StyleSheet for Theme {
                         text_color: Some(text),
                         background: Some(background.into()),
                         border_radius: self.border_radius(),
-                        border_width: 0.0,
+                        border_width: 1.0,
                         border_color: border,
+                    }
+                }
+                theme::Container::Theme(Var::Std) => {
+                    let Palette {
+                        background,
+                        foreground,
+                        ..
+                    } = self.theme_palette().alt;
+                    Appearance {
+                        text_color: Some(background),
+                        background: Some(foreground.into()),
+                        border_radius: self.border_radius(),
+                        border_width: 0.0,
+                        border_color: Color::BLACK,
                     }
                 }
                 theme::Container::ContrastPalette {
@@ -278,16 +293,16 @@ impl iced::widget::toggler::StyleSheet for Theme {
     fn active(&self, style: &Self::Style, is_active: bool) -> iced::widget::toggler::Appearance {
         match style {
             theme::Toggler::Custom(style_sheet) => style_sheet.active(self, is_active),
-            theme::Toggler::Theme => toggler_appearance(self.theme_palette().base),
-            theme::Toggler::ThemeAlt => toggler_alt_appearance(self.theme_palette().base),
+            theme::Toggler::Theme(Var::Std) => toggler_appearance(self.theme_palette().base),
+            theme::Toggler::Theme(Var::Alt) => toggler_alt_appearance(self.theme_palette().base),
         }
     }
 
     fn hovered(&self, style: &Self::Style, is_active: bool) -> iced::widget::toggler::Appearance {
         match style {
             theme::Toggler::Custom(style_sheet) => style_sheet.hovered(self, is_active),
-            theme::Toggler::Theme => toggler_appearance(self.theme_palette().alt),
-            theme::Toggler::ThemeAlt => toggler_alt_appearance(self.theme_palette().alt),
+            theme::Toggler::Theme(Var::Std) => toggler_appearance(self.theme_palette().alt),
+            theme::Toggler::Theme(Var::Alt) => toggler_alt_appearance(self.theme_palette().alt),
         }
     }
 }
@@ -335,10 +350,10 @@ impl iced::widget::button::StyleSheet for Theme {
     fn active(&self, style: &Self::Style) -> iced::widget::button::Appearance {
         match style {
             theme::Button::Custom(style_sheet) => style_sheet.active(self),
-            theme::Button::Theme => {
+            theme::Button::Theme(Var::Std) => {
                 button_appearance(self.theme_palette().base, self.border_radius())
             }
-            theme::Button::ThemeAlt => {
+            theme::Button::Theme(Var::Alt) => {
                 button_alt_appearance(self.theme_palette().base, self.border_radius())
             }
         }
@@ -347,10 +362,10 @@ impl iced::widget::button::StyleSheet for Theme {
     fn hovered(&self, style: &Self::Style) -> iced::widget::button::Appearance {
         match style {
             theme::Button::Custom(style_sheet) => style_sheet.hovered(self),
-            theme::Button::Theme => {
+            theme::Button::Theme(Var::Std) => {
                 button_appearance(self.theme_palette().alt, self.border_radius())
             }
-            theme::Button::ThemeAlt => {
+            theme::Button::Theme(Var::Alt) => {
                 button_alt_appearance(self.theme_palette().alt, self.border_radius())
             }
         }
@@ -359,10 +374,10 @@ impl iced::widget::button::StyleSheet for Theme {
     fn pressed(&self, style: &Self::Style) -> iced::widget::button::Appearance {
         match style {
             theme::Button::Custom(style_sheet) => style_sheet.pressed(self),
-            theme::Button::Theme => {
+            theme::Button::Theme(Var::Std) => {
                 button_appearance(self.theme_palette().alt.mute(None), self.border_radius())
             }
-            theme::Button::ThemeAlt => {
+            theme::Button::Theme(Var::Alt) => {
                 button_alt_appearance(self.theme_palette().alt.mute(None), self.border_radius())
             }
         }
@@ -371,10 +386,10 @@ impl iced::widget::button::StyleSheet for Theme {
     fn disabled(&self, style: &Self::Style) -> iced::widget::button::Appearance {
         match style {
             theme::Button::Custom(style_sheet) => style_sheet.disabled(self),
-            theme::Button::Theme => {
+            theme::Button::Theme(Var::Std) => {
                 button_appearance(self.theme_palette().base.mute(None), self.border_radius())
             }
-            theme::Button::ThemeAlt => {
+            theme::Button::Theme(Var::Alt) => {
                 button_alt_appearance(self.theme_palette().base.mute(None), self.border_radius())
             }
         }

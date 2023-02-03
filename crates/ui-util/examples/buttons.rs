@@ -1,4 +1,4 @@
-use bookmark_ui_util::Theme;
+use bookmark_ui_util::{theme, Theme};
 use iced::{
     widget::{button, container, text, toggler, Column, Row},
     Alignment, Application, Element, Length, Settings,
@@ -58,7 +58,8 @@ impl Application for App {
                         toggler(None, matches!(self.theme, Theme::DarkMute), |b| {
                             Message::Theme(if b { Theme::DarkMute } else { Theme::Light })
                         })
-                        .width(Length::Shrink),
+                        .width(Length::Shrink)
+                        .style(theme::Toggler::Theme(theme::Var::Alt)),
                     ),
             )
             .push(
@@ -73,7 +74,8 @@ impl Application for App {
                     .push(
                         button("Two")
                             .padding(3)
-                            .on_press(Message::Text("Two".into())),
+                            .on_press(Message::Text("Two".into()))
+                            .style(theme::Button::Theme(theme::Var::Alt)),
                     )
                     .push(
                         button("Three")
