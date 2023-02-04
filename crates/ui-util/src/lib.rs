@@ -92,8 +92,10 @@ impl Theme {
     #[must_use]
     pub fn theme_palette(&self) -> ThemePalette {
         ThemePalette {
-            base: self.convert_palette(self.contrast_palette()),
-            alt: self.convert_palette(self.contrast_palette_alt()),
+            mute: self.convert_palette(self.contrast_palette().mute_dim(None)),
+            alt: self.convert_palette(self.contrast_palette_alt().mute_dim(None)),
+            mute_highlight: self.convert_palette(self.contrast_palette()),
+            alt_highlight: self.convert_palette(self.contrast_palette_alt()),
         }
     }
 
@@ -138,7 +140,7 @@ impl iced::application::StyleSheet for Theme {
             theme::Application::Theme => {
                 let Palette {
                     background, text, ..
-                } = self.theme_palette().base;
+                } = self.theme_palette().mute;
                 Appearance {
                     background_color: background,
                     text_color: text,
@@ -147,7 +149,7 @@ impl iced::application::StyleSheet for Theme {
             theme::Application::ContrastPalette(palette) => {
                 let Palette {
                     background, text, ..
-                } = self.convert_palette(*palette);
+                } = self.convert_palette(palette.mute_dim(None));
                 Appearance {
                     background_color: background,
                     text_color: text,
@@ -165,8 +167,10 @@ impl iced::widget::text::StyleSheet for Theme {
         use iced::widget::text::Appearance;
         Appearance {
             color: style.map(|style| match style {
-                theme::Text::Theme => self.theme_palette().base.text,
-                theme::Text::ContrastPalette(palette) => self.convert_palette(palette).text,
+                theme::Text::Theme => self.theme_palette().mute.text,
+                theme::Text::ContrastPalette(palette) => {
+                    self.convert_palette(palette.mute_dim(None)).text
+                }
                 theme::Text::Color(color) => color,
             }),
         }
@@ -222,7 +226,7 @@ impl iced::widget::container::StyleSheet for Theme {
                         text,
                         border,
                         ..
-                    } = self.convert_palette(*palette);
+                    } = self.convert_palette(palette.mute_dim(None));
                     Appearance {
                         text_color: Some(text),
                         background: Some(background.into()),
@@ -273,16 +277,20 @@ impl iced::widget::toggler::StyleSheet for Theme {
     fn active(&self, style: &Self::Style, is_active: bool) -> iced::widget::toggler::Appearance {
         match style {
             theme::Toggler::Custom(style_sheet) => style_sheet.active(self, is_active),
-            theme::Toggler::Theme(Var::Std) => toggler_appearance(self.theme_palette().base),
-            theme::Toggler::Theme(Var::Alt) => toggler_alt_appearance(self.theme_palette().base),
+            theme::Toggler::Theme(Var::Std) => toggler_appearance(self.theme_palette().mute),
+            theme::Toggler::Theme(Var::Alt) => toggler_alt_appearance(self.theme_palette().mute),
         }
     }
 
     fn hovered(&self, style: &Self::Style, is_active: bool) -> iced::widget::toggler::Appearance {
         match style {
             theme::Toggler::Custom(style_sheet) => style_sheet.hovered(self, is_active),
-            theme::Toggler::Theme(Var::Std) => toggler_appearance(self.theme_palette().alt),
-            theme::Toggler::Theme(Var::Alt) => toggler_alt_appearance(self.theme_palette().alt),
+            theme::Toggler::Theme(Var::Std) => {
+                toggler_appearance(self.theme_palette().mute_highlight)
+            }
+            theme::Toggler::Theme(Var::Alt) => {
+                toggler_alt_appearance(self.theme_palette().mute_highlight)
+            }
         }
     }
 }
@@ -331,10 +339,10 @@ impl iced::widget::button::StyleSheet for Theme {
         match style {
             theme::Button::Custom(style_sheet) => style_sheet.active(self),
             theme::Button::Theme(Var::Std) => {
-                button_appearance(self.theme_palette().base, self.border_radius())
+                button_appearance(self.theme_palette().mute, self.border_radius())
             }
             theme::Button::Theme(Var::Alt) => {
-                button_alt_appearance(self.theme_palette().base, self.border_radius())
+                button_alt_appearance(self.theme_palette().mute, self.border_radius())
             }
         }
     }
@@ -343,10 +351,10 @@ impl iced::widget::button::StyleSheet for Theme {
         match style {
             theme::Button::Custom(style_sheet) => style_sheet.hovered(self),
             theme::Button::Theme(Var::Std) => {
-                button_appearance(self.theme_palette().alt, self.border_radius())
+                button_appearance(self.theme_palette().mute_highlight, self.border_radius())
             }
             theme::Button::Theme(Var::Alt) => {
-                button_alt_appearance(self.theme_palette().alt, self.border_radius())
+                button_alt_appearance(self.theme_palette().mute_highlight, self.border_radius())
             }
         }
     }
@@ -355,10 +363,10 @@ impl iced::widget::button::StyleSheet for Theme {
         match style {
             theme::Button::Custom(style_sheet) => style_sheet.pressed(self),
             theme::Button::Theme(Var::Std) => {
-                button_appearance(self.theme_palette().alt.mute(None), self.border_radius())
+                button_appearance(self.theme_palette().mute, self.border_radius())
             }
             theme::Button::Theme(Var::Alt) => {
-                button_alt_appearance(self.theme_palette().alt.mute(None), self.border_radius())
+                button_alt_appearance(self.theme_palette().mute, self.border_radius())
             }
         }
     }
@@ -367,10 +375,10 @@ impl iced::widget::button::StyleSheet for Theme {
         match style {
             theme::Button::Custom(style_sheet) => style_sheet.disabled(self),
             theme::Button::Theme(Var::Std) => {
-                button_appearance(self.theme_palette().base.mute(None), self.border_radius())
+                button_appearance(self.theme_palette().mute.mute(None), self.border_radius())
             }
             theme::Button::Theme(Var::Alt) => {
-                button_alt_appearance(self.theme_palette().base.mute(None), self.border_radius())
+                button_alt_appearance(self.theme_palette().mute.mute(None), self.border_radius())
             }
         }
     }

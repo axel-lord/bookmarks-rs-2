@@ -6,9 +6,13 @@ use iced::Color;
 #[derive(Clone, Copy, Debug)]
 pub struct ThemePalette {
     /// Primary colors of theme.
-    pub base: Palette,
+    pub mute: Palette,
+    /// Colors for hovered/highlighted items for mute.
+    pub mute_highlight: Palette,
     /// Secondary colors of theme.
     pub alt: Palette,
+    /// Colors for hovered/highlighted items for alt.
+    pub alt_highlight: Palette,
 }
 
 /// The palette for an item in a [`ThemePalette`].
