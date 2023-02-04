@@ -153,10 +153,6 @@ impl iced::application::StyleSheet for Theme {
                     text_color: text,
                 }
             }
-            theme::Application::Manual { background, text } => Appearance {
-                background_color: *background,
-                text_color: *text,
-            },
             theme::Application::Custom(style) => style.appearance(self),
         }
     }
@@ -220,37 +216,21 @@ impl iced::widget::container::StyleSheet for Theme {
                         border_color: Color::BLACK,
                     }
                 }
-                theme::Container::ContrastPalette {
-                    palette,
-                    opaque_background,
-                    show_border,
-                    update_text,
-                } => {
+                theme::Container::ContrastPalette(palette, var) => {
                     let Palette {
-                        border,
                         background,
                         text,
+                        border,
                         ..
                     } = self.convert_palette(*palette);
                     Appearance {
-                        text_color: update_text.then_some(text),
-                        background: opaque_background.then_some(background.into()),
+                        text_color: Some(text),
+                        background: Some(background.into()),
                         border_radius: self.border_radius(),
-                        border_width: if *show_border { 1.0 } else { 0.0 },
+                        border_width: if matches!(var, Var::Std) { 0.0 } else { 1.0 },
                         border_color: border,
                     }
                 }
-                theme::Container::Manual {
-                    background,
-                    text,
-                    border,
-                } => Appearance {
-                    text_color: *text,
-                    background: background.map(Background::from),
-                    border_radius: self.border_radius(),
-                    border_width: if border.is_some() { 1.0 } else { 0.0 },
-                    border_color: border.unwrap_or(Color::BLACK),
-                },
                 theme::Container::Custom(custom) => custom.appearance(self),
             },
         )

@@ -24,13 +24,6 @@ pub enum Application {
     /// Use a palette based on contrasting colors swapping which is used for what, and modifying
     /// them based on theme.
     ContrastPalette(ContrastPalette),
-    /// Set colors manually.
-    Manual {
-        /// Background color in use by application.
-        background: Color,
-        /// Text color in use by application.
-        text: Color,
-    },
     /// Implement style yourself.
     Custom(Somewhere<dyn iced::application::StyleSheet<Style = Theme>>),
 }
@@ -44,26 +37,7 @@ pub enum Container {
     Theme(Var),
     /// Use a palette based on contrast swapping what is foreground and background based on
     /// theme
-    ContrastPalette {
-        /// [ContrastPalette] to use.
-        palette: ContrastPalette,
-        /// If the background should be shown.
-        opaque_background: bool,
-        /// If the border should be shown.
-        show_border: bool,
-        /// If the text color should be changed.
-        update_text: bool,
-    },
-    /// Use the provided colors for theme, they are used as is and None values indicate they are
-    /// not present (no background, no text update, no border)
-    Manual {
-        /// If the background should be visible and if so what color.
-        background: Option<Color>,
-        /// If the text color should be changed and if so to what color.
-        text: Option<Color>,
-        /// If the border should be shown and if so what color.
-        border: Option<Color>,
-    },
+    ContrastPalette(ContrastPalette, Var),
     /// Implement the style yourself and pass it.
     Custom(Somewhere<dyn iced::widget::container::StyleSheet<Style = Theme>>),
 }
