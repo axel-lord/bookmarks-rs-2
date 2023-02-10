@@ -8,8 +8,9 @@
     rustdoc::all
 )]
 
+use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
-use std::{io, path::PathBuf, result};
+use std::{io, mem, path::PathBuf, result};
 use tap::Pipe;
 use thiserror::Error;
 use tokio::fs;
@@ -30,7 +31,7 @@ pub enum Error {
 pub type Result<T = ()> = result::Result<T, Error>;
 
 /// Layout of file data.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, DeepSizeOf)]
 pub struct FileData {
     /// Cache of all tags in use.
     pub tag: Vec<String>,
@@ -41,7 +42,7 @@ pub struct FileData {
 }
 
 /// Layout of a category.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, DeepSizeOf)]
 pub struct CategoryData {
     /// Name of the category.
     pub name: String,
@@ -54,7 +55,7 @@ pub struct CategoryData {
 }
 
 /// Sorting rules for a category.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, DeepSizeOf)]
 pub struct IdentifierData {
     /// For a bookmark to belong to a catgory these substrings are required to be in the url of the
     /// bookmark.
@@ -80,6 +81,20 @@ pub struct BookmarkData {
     pub tag: Vec<String>,
 }
 
+impl DeepSizeOf for BookmarkData {
+    fn deep_size_of_children(&self, _context: &mut deepsize::Context) -> usize {
+        0
+    }
+
+    fn deep_size_of(&self) -> usize {
+        mem::size_of::<Self>()
+            + self.url.capacity()
+            + self.info.capacity()
+            + self.tag.iter().map(String::capacity).sum::<usize>()
+            + self.tag.capacity() * mem::size_of::<String>()
+    }
+}
+
 impl FileData {
     /// Load a bookmark file from a path.
     ///
@@ -87,6 +102,12 @@ impl FileData {
     /// If the file does not exist or if it is wrongly formatted.
     pub async fn load(path: PathBuf) -> Result<Self> {
         Ok(fs::read(path).await?.pipe_deref(rmp_serde::from_slice)?)
+    }
+
+    /// Get the size of loaded data in bytes.
+    #[must_use]
+    pub fn storage_size(&self) -> usize {
+        self.deep_size_of()
     }
 }
 
